@@ -1,77 +1,43 @@
 import mesa
 
-from .model import EpsteinCivilViolence
-from .agent import Citizen, Cop
-from mesa.visualization.UserParam import Slider, NumberInput
+from .model import ProtestCascade
+from .agent import Citizen
+from mesa.visualization.UserParam import Slider, NumberInput, Checkbox
 from mesa.visualization.modules import ChartModule, TextElement
 
 
-COP_COLOR = "#000000"
-AGENT_QUIET_COLOR = "#648FFF"
-AGENT_REBEL_COLOR = "#FE6100"
-JAIL_COLOR = "#808080"
-JAIL_SHAPE = "rect"
+AGENT_SUPPORT_COLOR = "#648FFF"
+AGENT_OPPOSE_COLOR = "#FE6100"
 
 
-class JailChart(TextElement):
-    """Display the current jail population."""
 
-    def render(self, model):
-        return f"Jail Population: {model.jail_count}"
+# class QuiescentChart(TextElement):
+#     """Display the current active population."""
 
-
-class ActiveChart(TextElement):
-    """Display the current active population."""
-
-    def render(self, model):
-        return f"Active Population: {model.active_count}"
+#     def render(self, model):
+#         return f"Quiescent Population: {model.quiescent_count}"
 
 
-class CitizenChart(TextElement):
-    """Display the current active population."""
+# quiescent_chart = QuiescentChart()
 
-    def render(self, model):
-        return f"Citizen Population: {model.citizen_count}"
+# chart = ChartModule(
+#     [
+#         {"Label": "Quiescent", "Color": "#648FFF"},
+#         {"Label": "Active", "Color": "#FE6100"},
+#         {"Label": "Jailed", "Color": "#808080"},
+#     ],
+#     data_collector_name="datacollector",
+# )
 
-
-class CopChart(TextElement):
-    """Display the current active population."""
-
-    def render(self, model):
-        return f"Cop Population: {model.cop_count}"
-
-
-class QuiescentChart(TextElement):
-    """Display the current active population."""
-
-    def render(self, model):
-        return f"Quiescent Population: {model.quiescent_count}"
+# chart_spread_speed = ChartModule(
+#     [
+#         {"Label": "Speed of Rebellion Transmission", "Color": "#000000"},
+#     ],
+#     data_collector_name="datacollector",
+# )
 
 
-citizen_chart = CitizenChart()
-cop_chart = CopChart()
-quiescent_chart = QuiescentChart()
-active_chart = ActiveChart()
-jail_chart = JailChart()
-
-chart = ChartModule(
-    [
-        {"Label": "Quiescent", "Color": "#648FFF"},
-        {"Label": "Active", "Color": "#FE6100"},
-        {"Label": "Jailed", "Color": "#808080"},
-    ],
-    data_collector_name="datacollector",
-)
-
-chart_spread_speed = ChartModule(
-    [
-        {"Label": "Speed of Rebellion Transmission", "Color": "#000000"},
-    ],
-    data_collector_name="datacollector",
-)
-
-
-def citizen_cop_portrayal(agent):
+def portrayal(agent):
     if agent is None:
         return
 
@@ -84,24 +50,12 @@ def citizen_cop_portrayal(agent):
 
     if type(agent) is Citizen:
         color = (
-            AGENT_QUIET_COLOR if agent.condition == "Quiescent" else AGENT_REBEL_COLOR
+            AGENT_SUPPORT_COLOR if agent.condition == "Support" else AGENT_OPPOSE_COLOR
         )
-        color = JAIL_COLOR if agent.jail_sentence else color
-        shape = JAIL_SHAPE if agent.jail_sentence else "circle"
         portrayal["Color"] = color
-        portrayal["Shape"] = shape
-        if shape == "rect":
-            portrayal["w"] = 0.9
-            portrayal["h"] = 0.9
-        else:
-            portrayal["r"] = 0.5
-            portrayal["Filled"] = "false"
+        portrayal["r"] = 0.5
+        portrayal["Filled"] = "false"
         portrayal["Layer"] = 0
-
-    elif type(agent) is Cop:
-        portrayal["Color"] = COP_COLOR
-        portrayal["r"] = 0.9
-        portrayal["Layer"] = 1
 
     return portrayal
 
@@ -123,29 +77,19 @@ def citizen_cop_portrayal(agent):
 model_params = dict(
     height=40,
     width=40,
-    citizen_density=Slider("Initial Agent Density", 0.7, 0.0, 0.9, 0.1),
-    cop_density=Slider("Initial Cop Density", 0.04, 0.0, 0.1, 0.01),
+    citizen_density=Slider("Initial Agent Density", 0.1, 0.0, 0.9, 0.1),
+    multiple_agents_per_cell=Checkbox("Multiple Agents Per Cell", value=False),
     citizen_vision=Slider("Citizen Vision", 7, 1, 10, 1),
-    citizen_network_size=Slider("Citizen Network Size", 157, 0, 300, 10),
-    network_discount_factor=Slider("Network Discount Factor", 0.5, 0.0, 1.0, 0.1),
-    cop_vision=Slider("Cop Vision", 7, 1, 10, 1),
-    legitimacy=Slider("Government Legitimacy", 0.82, 0.0, 1, 0.01),
-    max_jail_term=Slider("Max Jail Term", 30, 0, 50, 1),
+    network=Checkbox("Network", value=False),
+    network_discount=Slider("Network Discount Factor", 0.5, 0.0, 1.0, 0.1),
     seed=NumberInput("Random Seed", value=42),
 )
-canvas_element = mesa.visualization.CanvasGrid(citizen_cop_portrayal, 40, 40, 480, 480)
+canvas_element = mesa.visualization.CanvasGrid(portrayal, 40, 40, 480, 480)
 server = mesa.visualization.ModularServer(
-    EpsteinCivilViolence,
+    ProtestCascade,
     [
         canvas_element,
-        citizen_chart,
-        cop_chart,
-        quiescent_chart,
-        active_chart,
-        jail_chart,
-        chart,
-        chart_spread_speed,
     ],
-    "Epstein Civil Violence",
+    "Protest Cascade",
     model_params,
 )

@@ -18,7 +18,7 @@ class RandomWalker(mesa.Agent):
     y = None
     moore = True
 
-    def __init__(self, unique_id, pos, model, moore=True):
+    def __init__(self, unique_id, model, pos, moore=True):
         """
         grid: The MultiGrid object in which the agent lives.
         x: The agent's current x coordinate
@@ -40,4 +40,16 @@ class RandomWalker(mesa.Agent):
         # Now move:
         self.model.grid.move_agent(self, next_move)
 
-    
+    def random_move_to_empty(self):
+        """
+        Step one cell in any allowable direction, but only if the cell is empty.
+        """
+        # Pick the next cell from the adjacent cells.
+        next_moves = self.model.grid.get_neighborhood(self.pos, self.moore, True)
+        next_moves = [
+            empty for empty in next_moves if self.model.grid.is_cell_empty(empty)
+        ]
+        # Now move:
+        if self.model.movement and next_moves:
+            new_pos = self.random.choice(next_moves)
+            self.model.grid.move_agent(self, new_pos)

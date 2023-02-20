@@ -26,3 +26,4 @@ class RandomActivationByTypeFiltered(mesa.time.RandomActivationByType):
             if filter_func is None or filter_func(agent):
                 count += 1
         return count
+
