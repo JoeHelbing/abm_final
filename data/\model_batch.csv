@@ -1,0 +1,2 @@
+,seed,Run,Seed,width,height,citizen_density,citizen_vision,movement,max_iters,multiple_agents_per_cell
+0,1,0,1,40,40,0.7,7,True,500,False

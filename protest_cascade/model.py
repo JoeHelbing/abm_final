@@ -29,11 +29,19 @@ class ProtestCascade(mesa.Model):
         multiple_agents_per_cell=False,
         network=False,
         network_discount=0.5,
+        international_context=0.00,
+        general_preference=0,
+        epsilon=0.5,
         max_iters=100,
         seed=None,
+        random_seed=False,
     ):
         super().__init__()
-        self.reset_randomizer(seed)
+        if random_seed:
+            seed = None
+            self.reset_randomizer(seed)
+        else:
+            self.reset_randomizer(seed)
         print(f"Running ProtestCascade with seed {self._seed}")
         self.width = width
         self.height = height
@@ -49,6 +57,7 @@ class ProtestCascade(mesa.Model):
             (((self.citizen_vision * 2 + 1) ** 2) - 1) * self.citizen_density
         )
         self.iteration = 0
+        self.random_seed = random_seed
         self.schedule = RandomActivationByTypeFiltered(self)
         self.grid = mesa.space.MultiGrid(self.width, self.height, torus=True)
 
@@ -66,7 +75,13 @@ class ProtestCascade(mesa.Model):
                 x = self.random.randrange(self.width)
                 y = self.random.randrange(self.height)
                 pos = (x, y)
-            citizen = Citizen(self.next_id(), self, pos, self.citizen_vision)
+            # normal distribution of private regime preference
+            private_preference = self.random.gauss(general_preference, 1)
+            # uniform distribution of error term on expectation of repression
+            epsilon = self.random.uniform(-.25, .25)
+            # uniform distribution of threshold for protest
+            threshold = self.random.uniform(0, 1)
+            citizen = Citizen(self.next_id(), self, pos, self.citizen_vision, private_preference, epsilon, threshold)
             self.grid.place_agent(citizen, pos)
             self.schedule.add(citizen)
 
@@ -77,6 +92,7 @@ class ProtestCascade(mesa.Model):
         agent_reporters = {
             "pos": lambda a: getattr(a, "pos", None),
             "condition": lambda a: getattr(a, "condition", None),
+            "opinion": lambda a: getattr(a, "opinion", None),
         }
         self.datacollector = mesa.DataCollector(
             model_reporters=model_reporters, agent_reporters=agent_reporters
@@ -149,28 +165,3 @@ class ProtestCascade(mesa.Model):
             (agent1.pos[0] - agent2.pos[0]) ** 2 + (agent1.pos[1] - agent2.pos[1]) ** 2
         )
 
-    # @staticmethod
-    # def count_jailed(model):
-    #     """
-    #     Helper method to count jailed agents.
-    #     """
-    #     return len(
-    #         [
-    #             agent
-    #             for agent in model.schedule.agents
-    #             if agent.breed == "citizen" and agent.jail_sentence > 0
-    #         ]
-    #     )
-
-    # @staticmethod
-    # def speed_of_rebellion_calculation(model):
-    #     """
-    #     Calculates the speed of transmission of the rebellion.
-    #     """
-    #     if model.citizen_count == 0:
-    #         return 0
-    #     count = 0
-    #     for agent in model.schedule.agents:
-    #         if agent.breed == "citizen" and agent.flipped == True:
-    #             count += 1
-    #     return count / model.citizen_count
