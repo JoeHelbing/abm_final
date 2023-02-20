@@ -82,8 +82,6 @@ class ProtestCascade(mesa.Model):
             model_reporters=model_reporters, agent_reporters=agent_reporters
         )
 
-        # log.DEBUG(self.schedule.agents_by_type[Citizen].values())
-
         # intializing the agent network
         if self.network:
             self.network_initialization()
