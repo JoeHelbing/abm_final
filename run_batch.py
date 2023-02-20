@@ -1,39 +1,68 @@
-from wolf_sheep.model import WolfSheep
+from protest_cascade.model import ProtestCascade
 from mesa.batchrunner import FixedBatchRunner
+import logging as log
+import os
+import pandas as pd
+from itertools import product
+
+# set up logging to output to cwd /data
+# log debug messages to file
+# info message to console
+cwd = os.getcwd()
+path = os.path.join(cwd, "./data/")
+log.basicConfig(filename=f"{path}/log/batch.log", level=log.DEBUG)
+log.info("Starting batch run")
 
 # parameters that will remain constant
 fixed_parameters = {
-    "height": 20,
-    "width": 20,
-    "initial_sheep": 100,
-    "initial_wolves": 50,
-    "sheep_reproduce": 0.04,
-    "wolf_reproduce": 0.05,
-    "wolf_gain_from_food": 20,
-    "grass": False,
+    "width": 40,
+    "height": 40,
+    "citizen_density": 0.7,
+    "citizen_vision": 7,
+    "movement": True,
+    "max_iters": 500,
+    "multiple_agents_per_cell": False,
 }
 
 # parameters you want to vary
 # can also include combinations here
-parameters_list = [{"grass_regrowth_time": 30, "sheep_gain_from_food": 2},
-                    {"grass_regrowth_time": 30, "sheep_gain_from_food": 3}, 
-                    {"grass_regrowth_time": 30, "sheep_gain_from_food": 4},
-                    {"grass_regrowth_time": 30, "sheep_gain_from_food": 5},                    
-                   {"grass_regrowth_time": 35, "sheep_gain_from_food": 2},
-                    {"grass_regrowth_time": 35, "sheep_gain_from_food": 3},
-                    {"grass_regrowth_time": 35, "sheep_gain_from_food": 4},
-                    {"grass_regrowth_time": 35, "sheep_gain_from_food": 5},
-                     ]
+params = {"seed": [1]}
+
+
+def dict_product(dicts):  # could just use the below but it's cleaner this way
+    """
+    >>> list(dict_product(dict(number=[1,2], character='ab')))
+    [{'character': 'a', 'number': 1},
+     {'character': 'a', 'number': 2},
+     {'character': 'b', 'number': 1},
+     {'character': 'b', 'number': 2}]
+    """
+    return (dict(zip(dicts, x)) for x in product(*dicts.values()))
+
+
+parameters_list = [*dict_product(params)]
+
+# log the parameters
+log.debug(parameters_list)
 
 # what to run and what to collect
 # iterations is how many runs per parameter value
 # max_steps is how long to run the model
-batch_run = FixedBatchRunner(WolfSheep, parameters_list, 
-                            fixed_parameters, iterations=10,
-                            model_reporters={
-                                "Wolves": lambda m: m.schedule.get_type_count("Wolf"),
-                                "Sheep": lambda m: m.schedule.get_type_count("Sheep")}, 
-                                max_steps=100)
+max_steps = 100
+batch_run = FixedBatchRunner(
+    ProtestCascade,
+    parameters_list,
+    fixed_parameters,
+    model_reporters={
+        "Seed": lambda m: m.report_seed(m),
+    },
+    agent_reporters={
+        "pos": "pos",
+        "condition": "condition",
+        "opinion": "opinion",
+    },
+    max_steps=max_steps,
+)
 
 # run the batches of your model with the specified variations
 batch_run.run_all()
@@ -42,9 +71,20 @@ batch_run.run_all()
 ## NOTE: to do data collection, you need to be sure your pathway is correct to save this!
 # Data collection
 # extract data as a pandas Data Frame
-batch_df = batch_run.get_model_vars_dataframe()
-#batch_df_a = batch_run.get_agent_vars_dataframe()
+batch_end_model = batch_run.get_model_vars_dataframe()
+batch_end_agent = batch_run.get_agent_vars_dataframe()
+batch_step_model_raw = batch_run.get_collector_model()
+batch_step_agent_raw = batch_run.get_collector_agents()
 
 # export the data to a csv file for graphing/analysis
-batch_df.to_csv("./data/seg_model_batch_run_data.csv")
-#batch_df_a.to_csv(".data/seg_agent_batch_run_data.csv")
+cwd = os.getcwd()
+path = os.path.join(cwd, "data/")
+batch_end_model.to_csv(f"{path}\model_batch.csv")
+
+print(batch_step_model_raw.keys())
+
+for key, df in batch_step_model_raw.items():
+    df.to_csv(f"{path}/seed_run/model_seed_{key[0]}.csv")
+
+for key, df in batch_step_agent_raw.items():
+    df.to_csv(f"{path}/seed_run/agent_seed_{key[0]}.csv")
