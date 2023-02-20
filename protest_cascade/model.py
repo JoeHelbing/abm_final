@@ -116,11 +116,7 @@ class ProtestCascade(mesa.Model):
             # from this agent to all other agents
             distances = []
             for other_agent in self.schedule.agents_by_type[Citizen].values():
-                print(other_agent)
-                print(type(other_agent))
-                print(f"Agent {other_agent.unique_id} is at {other_agent.pos}")
                 if agent is not other_agent:
-                    print(agent.pos)
                     distances.append(
                         (other_agent, self.distance_calculation(agent, other_agent))
                     )
