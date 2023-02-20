@@ -20,13 +20,13 @@ fixed_parameters = {
     "citizen_density": 0.7,
     "citizen_vision": 7,
     "movement": True,
-    "max_iters": 500,
+    "max_iters": 5,
     "multiple_agents_per_cell": False,
 }
 
 # parameters you want to vary
 # can also include combinations here
-params = {"seed": [1]}
+params = {"seed": [*range(0, 9, 1)]}
 
 
 def dict_product(dicts):  # could just use the below but it's cleaner this way

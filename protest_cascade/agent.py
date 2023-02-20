@@ -68,7 +68,7 @@ class Citizen(RandomWalker):
 
         # Calculate opinion and determine condition
         self.opinion = (
-            self.private_preference + self.epsilon + (0.01 * actives_in_vision)
+            self.private_preference + self.epsilon + (0.1 * actives_in_vision)
         )
         if self.opinion > self.threshold:
             self.condition = "Protest"
