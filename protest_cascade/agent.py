@@ -1,6 +1,15 @@
 from protest_cascade.random_walk import RandomWalker
 
 import mesa
+import logging as log
+
+# set up logging for the model
+log.basicConfig(
+    filename="./log/protest_cascade.log",
+    filemode="w",
+    format="%(message)s",
+    level=log.DEBUG,
+)
 
 
 class Citizen(RandomWalker):
@@ -24,18 +33,21 @@ class Citizen(RandomWalker):
         super().__init__(unique_id, model, pos)
         self.pos = pos
         self.vision = vision
-
         self.network = None
         self.condition = "Support"
         self.private_preference = private_preference
         self.epsilon = epsilon
         self.threshold = threshold
         self.opinion = None
+        self.activation = None
+        self.flip = None
 
     def step(self):
         """
         Decide whether to activate, then move if applicable.
         """
+        # Set flip to False
+        self.flip = False
         # random movement
         if self.model.multiple_agents_per_cell:
             self.random_move()
@@ -70,9 +82,17 @@ class Citizen(RandomWalker):
         self.opinion = (
             self.private_preference + self.epsilon + (0.1 * actives_in_vision)
         )
-        if self.opinion > self.threshold:
+        self.activation = self.sigmoid(self.opinion)
+        log.debug(
+            f"Agent {self.unique_id} -- opinion: {self.opinion}, activation: {self.activation}"
+        )
+
+        if self.activation > self.threshold:
+            if self.condition != "Protest":
+                self.flip = True
+                log.debug(f"====================================================")
+                log.debug(f"Agent {self.unique_id} Threshold -- {self.threshold}")
+                log.debug(f"Agent {self.unique_id} -- FLIPPED TO PROTEST")
             self.condition = "Protest"
         else:
             self.condition = "Support"
-
-

@@ -3,6 +3,7 @@ Generalized behavior for random walking, one grid cell at a time.
 """
 
 import mesa
+import math
 
 
 class RandomWalker(mesa.Agent):
@@ -53,3 +54,15 @@ class RandomWalker(mesa.Agent):
         if self.model.movement and next_moves:
             new_pos = self.random.choice(next_moves)
             self.model.grid.move_agent(self, new_pos)
+
+    def sigmoid(self, x):
+        """
+        Sigmoid function
+        """
+        return 1 / (1 + math.exp(-x))
+    
+    def logit(self, x):
+        """
+        Logit function
+        """
+        return math.log(x / (1 - x))

@@ -84,7 +84,7 @@ batch_end_model.to_csv(f"{path}\model_batch.csv")
 print(batch_step_model_raw.keys())
 
 for key, df in batch_step_model_raw.items():
-    df.to_csv(f"{path}/model_seed_{key[0]}.csv")
+    df.to_csv(f"{path}/model/model_seed_{key[0]}.csv")
 
 for key, df in batch_step_agent_raw.items():
-    df.to_csv(f"{path}/agent_seed_{key[0]}.csv")
+    df.to_csv(f"{path}/agent/agent_seed_{key[0]}.csv")
