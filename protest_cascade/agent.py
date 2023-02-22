@@ -41,6 +41,7 @@ class Citizen(RandomWalker):
         self.opinion = None
         self.activation = None
         self.flip = None
+        self.memory = None
 
     def step(self):
         """
@@ -49,12 +50,11 @@ class Citizen(RandomWalker):
         # Set flip to False
         self.flip = False
         # random movement
-        if self.model.multiple_agents_per_cell:
-            self.random_move()
-        else:
-            self.random_move_to_empty()
+        self.random_move()
         # update neighborhood
         self.neighborhood = self.update_neighbors()
+        # memorize avg location of acitve agents
+        self.memory = self.determine_avg_loc()
         # based on neighborhood determine if support, oppose, or protest
         self.determine_condidion()
 

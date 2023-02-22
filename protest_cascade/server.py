@@ -6,7 +6,7 @@ from mesa.visualization.UserParam import Slider, NumberInput, Checkbox
 from mesa.visualization.modules import ChartModule, TextElement
 
 
-AGENT_SUPPORT_COLOR = "#648FFF"
+AGENT_SUPPORT_COLOR = "#000000"
 AGENT_OPPOSE_COLOR = "#FE6100"
 
 
