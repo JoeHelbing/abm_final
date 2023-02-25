@@ -3,7 +3,7 @@ import math
 import logging as log
 import numpy as np
 from protest_cascade.scheduler import RandomActivationByTypeFiltered
-from .agent import Citizen
+from .agent import Citizen, Security
 
 class ProtestCascade(mesa.Model):
     """
@@ -16,6 +16,9 @@ class ProtestCascade(mesa.Model):
         height=40,
         citizen_vision=7,
         citizen_density=0.7,
+        security_density=0.04,
+        security_vision=7,
+        max_jail_term=30,
         movement=True,
         multiple_agents_per_cell=False,
         network=False,
@@ -25,7 +28,7 @@ class ProtestCascade(mesa.Model):
         standard_deviation=1,
         epsilon=0.5,
         threshold=0.1,
-        max_iters=100,
+        max_iters=1000,
         seed=None,
         random_seed=False,
     ):
@@ -40,12 +43,16 @@ class ProtestCascade(mesa.Model):
         self.height = height
         self.citizen_density = citizen_density
         self.citizen_vision = citizen_vision
+        self.security_density = security_density
+        self.security_vision = security_vision
         self.movement = movement
+        self.max_jail_term = max_jail_term
         self.max_iters = max_iters
         self.multiple_agents_per_cell = multiple_agents_per_cell
         self.network = network
         self.network_discount = network_discount
         self.citizen_count = round(self.width * self.height * self.citizen_density)
+        self.security_count = round(self.width * self.height * self.security_density)
         self.network_size = round(
             (((self.citizen_vision * 2 + 1) ** 2) - 1) * self.citizen_density
         )
@@ -93,12 +100,30 @@ class ProtestCascade(mesa.Model):
             self.grid.place_agent(citizen, pos)
             self.schedule.add(citizen)
 
+        for i in range(self.security_count):
+            pos = None
+            if not self.multiple_agents_per_cell and len(self.grid.empties) > 0:
+                pos = self.random.choice(list(self.grid.empties))
+            else:
+                x = self.random.randrange(self.width)
+                y = self.random.randrange(self.height)
+                pos = (x, y)
+            security = Security(
+                self.next_id(),
+                self,
+                pos,
+                self.security_vision,
+            )
+            self.grid.place_agent(security, pos)
+            self.schedule.add(security)
+
         # set up the data collector
         model_reporters = {
             "Seed": self.report_seed,
             "Citizen Count": self.count_citizen,
             "Protest Count": self.count_protest,
             "Support Count": self.count_support,
+            "Jail Count": self.count_jail,
             "Speed of Spread": self.speed_of_spread,
         }
         agent_reporters = {
@@ -237,5 +262,18 @@ class ProtestCascade(mesa.Model):
                 agent
                 for agent in model.schedule.agents_by_type[Citizen].values()
                 if agent.condition == "Support"
+            ]
+        )
+
+    @staticmethod
+    def count_jail(model):
+        """
+        Helper method to count jailed agents.
+        """
+        return len(
+            [
+                agent
+                for agent in model.schedule.agents_by_type[Citizen].values()
+                if agent.condition == "Jailed"
             ]
         )
