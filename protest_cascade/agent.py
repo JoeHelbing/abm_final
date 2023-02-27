@@ -35,6 +35,8 @@ class RandomWalker(mesa.Agent):
         super().__init__(unique_id, model)
         self.pos = pos
         self.moore = moore
+        self.active_agent_in_vision = False
+        self.gravity_vec = None
 
     def update_neighbors(self):
         """
@@ -45,6 +47,11 @@ class RandomWalker(mesa.Agent):
         )
         self.neighbors = self.model.grid.get_cell_list_contents(self.neighborhood)
 
+        # update active agent in vision boolean
+        self.active_agent_in_vision = any(
+            agent.condition == "Protest" for agent in self.neighbors
+        )
+
     def random_move(self):
         """
         Step one cell in any allowable direction.
@@ -52,18 +59,29 @@ class RandomWalker(mesa.Agent):
         # Pick the next cell from the adjacent cells.
         next_moves = self.model.grid.get_neighborhood(self.pos, self.moore, True)
 
-        # move towards other protesters if object type is Citizen and condition
-        # is Protest or if object type is Security
-        if (isinstance(self, Citizen) and self.ever_flipped) or isinstance(
-            self, Security
-        ):
-            next_moves = self.move_towards(next_moves)
-
-        # reduce to valid next moves if we don't allow multiple agents per cell
+        # reduce to valid next moves aka empties if we don't allow multiple
+        # agents per cell
         if not self.model.multiple_agents_per_cell:
             next_moves = [
                 empty for empty in next_moves if self.model.grid.is_cell_empty(empty)
             ]
+
+        # move towards other protesters if object type is Citizen and condition
+        # is Protest or if object type is Security
+        if (isinstance(self, Citizen) and self.condition == "Protest") or isinstance(
+            self, Security
+        ):
+            if self.active_agent_in_vision:
+                # find direction of greatest mass of active agents in vision
+                self.gravity_vec = self.gravity()
+                next_moves = self.move_towards(next_moves)
+
+        if (
+            isinstance(self, Citizen)
+            and self.condition == "Protest"
+            and self.active_agent_in_vision
+        ):
+            log.debug(f"next_moves: {next_moves}")
 
         # If there are no valid moves stay put
         if not next_moves:
@@ -75,59 +93,73 @@ class RandomWalker(mesa.Agent):
         # Now move:
         self.model.grid.move_agent(self, next_move)
 
-    def determine_avg_loc(self):
-        """
-        Looks at surrounding cells and determines the average location of the
-        of active agents in vision.
-        """
-        # if no neighbors, return self.pos
-        if not self.neighborhood:
-            return None
-
-        # pull out the positions of active agents in vision
-        pos_ag_list = [
-            agent.pos for agent in self.neighborhood if agent.condition == "Protest"
-        ]
-
-        # calculate the average location of active agents in vision
-        if len(pos_ag_list) > 0:
-            avg_pos = (
-                round(sum([pos[0] for pos in pos_ag_list]) / len(pos_ag_list)),
-                round(sum([pos[1] for pos in pos_ag_list]) / len(pos_ag_list)),
-            )
-        # if no active agents in vision, stay put
-        else:
-            avg_pos = None
-
-        # update memory
-        self.memory = avg_pos
-
     def move_towards(self, next_moves):
         """
         Whittles choices of next moves to only those that move the agent closer
-        to the average location of active agents in vision.
+        to the location greatest mass of active agents in vision.
         """
-        if self.memory is None:
-            return next_moves
+        closer_move = []
+        # # remove moves that don't move agent closer to gravity vector position
+        # closer_moves = min(
+        #     [(self.distance(move, self.gravity_vec), move) for move in next_moves]
+        # )
 
-        closer_moves = [
-            move
-            for move in next_moves
-            if self.distance(move, self.memory) < self.distance(self.pos, self.memory)
-        ]
-        return closer_moves
+        # closer_move.append(closer_moves[1])
+
+        # log.debug(f"Self pos: {self.pos}")
+        # log.debug(f"Agent {self.unique_id} closer_move: {closer_move}")
+        log.debug(f"Agent {self.unique_id} self pos: {self.pos}")
+        log.debug(f"Agent {self.unique_id} gravity_vec: {self.gravity_vec}")
+        log.debug(f"Agent {self.unique_id} next_moves: {next_moves}")
+        if self.gravity_vec in next_moves:
+            closer_move.append(self.gravity_vec)
+            log.debug(f"Agent {self.unique_id} is going {closer_move}")
+            return closer_move
+        else:
+            return
+
+    def gravity(self):
+        """
+        Uses a gravity function to determine agent movement based on the
+        distance between agent and other active agents.
+        """
+        force_x = 0
+        force_y = 0
+
+        active_neighbors = 0
+
+        for agent in self.neighbors:
+            if isinstance(agent, Citizen) and agent.condition == "Protest":
+                active_neighbors += 1
+                distance = self.distance(self.pos, agent.pos)
+                force_x += (self.pos[0] - agent.pos[0]) / distance**2
+                force_y += (self.pos[1] - agent.pos[1]) / distance**2
+
+        if force_x > 0:
+            force_x_r = 1
+        elif force_x < 0:
+            force_x_r = -1
+        else:
+            force_x_r = 0
+
+        if force_y > 0:
+            force_y_r = 1
+        elif force_y < 0:
+            force_y_r = -1
+        else:
+            force_y_r = 0
+
+        log.debug(f"Agent {self.unique_id} force_x: {force_x}, force_y: {force_y}")
+        log.debug(
+            f"Agent {self.unique_id} force_x_r: {force_x_r}, force_y_r: {force_y_r}"
+        )
+        return self.pos[0] + force_x_r, self.pos[1] + force_y_r
 
     def sigmoid(self, x):
         """
         Sigmoid function
         """
         return 1 / (1 + math.exp(-x))
-
-    def logit(self, x):
-        """
-        Logit function
-        """
-        return math.log(x / (1 - x))
 
     def distance(self, pos1, pos2):
         """
@@ -162,11 +194,12 @@ class Citizen(RandomWalker):
         self.private_preference = private_preference
         self.epsilon = epsilon
         self.threshold = threshold
+        self.neighborhood = None
+        self.neighbors = None
         self.opinion = None
         self.activation = None
         self.flip = None
         self.ever_flipped = False
-        self.memory = None
         self.jail_sentence = 0
 
     def step(self):
@@ -187,24 +220,12 @@ class Citizen(RandomWalker):
                 f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
             )
 
+        # update neighbors
+        self.update_neighbors()
         # random movement
         self.random_move()
-        # update neighborhood
-        self.neighborhood = self.update_neighbors()
-        # memorize avg location of acitve agents
-        self.memory = self.determine_avg_loc()
         # based on neighborhood determine if support, oppose, or protest
         self.determine_condidion()
-
-    def update_neighbors(self):
-        """
-        Look around and see who my neighbors are
-        """
-        self.neighborhood = self.model.grid.get_neighborhood(
-            self.pos, moore=True, radius=self.vision
-        )
-
-        self.neighbors = self.model.grid.get_cell_list_contents(self.neighborhood)
 
     def determine_condidion(self):
         """
@@ -247,6 +268,7 @@ class Citizen(RandomWalker):
         if prev_condition != self.condition:
             log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
+
 class Security(RandomWalker):
     """
     Placeholder
@@ -260,7 +282,9 @@ class Security(RandomWalker):
         self.pos = pos
         self.vision = vision
         self.condition = "Support"
-        self.memory = None
+        self.gravity_val = None
+        self.neighborhood = None
+        self.neighbors = None
 
     def step(self):
         """

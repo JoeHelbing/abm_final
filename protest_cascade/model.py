@@ -5,6 +5,7 @@ import numpy as np
 from protest_cascade.scheduler import RandomActivationByTypeFiltered
 from .agent import Citizen, Security
 
+
 class ProtestCascade(mesa.Model):
     """
     Placeholder
@@ -150,6 +151,8 @@ class ProtestCascade(mesa.Model):
         """
         Advance the model by one step and collect data.
         """
+        log.debug("========================================")
+        log.debug(f"Running step {self.iteration} of {self.max_iters}")
         self.schedule.step()
 
         # collect data
