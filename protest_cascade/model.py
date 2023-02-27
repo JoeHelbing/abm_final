@@ -72,6 +72,7 @@ class ProtestCascade(mesa.Model):
         self.protest_count = 0
 
         # Create agents
+        # create Citizens
         for i in range(self.citizen_count):
             pos = None
             if not self.multiple_agents_per_cell and len(self.grid.empties) > 0:
@@ -100,6 +101,7 @@ class ProtestCascade(mesa.Model):
             self.grid.place_agent(citizen, pos)
             self.schedule.add(citizen)
 
+        # create Security
         for i in range(self.security_count):
             pos = None
             if not self.multiple_agents_per_cell and len(self.grid.empties) > 0:

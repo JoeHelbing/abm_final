@@ -155,18 +155,26 @@ class Citizen(RandomWalker):
         Placeholder
         """
         super().__init__(unique_id, model, pos)
-        self.pos = pos
+        # core agent attributes
+        # self.pos = pos
         self.vision = vision
-        self.network = None
-        self.condition = "Support"
+
+        # agent personality attributes
         self.private_preference = private_preference
         self.epsilon = epsilon
         self.threshold = threshold
         self.opinion = None
         self.activation = None
+        self.risk_aversion = None
+
+        # agent memory attributes
+        self.network = None
         self.flip = None
         self.ever_flipped = False
         self.memory = None
+        self.condition = "Support"
+
+        # agent jail attributes
         self.jail_sentence = 0
 
     def step(self):
