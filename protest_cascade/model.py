@@ -16,7 +16,7 @@ class ProtestCascade(mesa.Model):
         height=40,
         citizen_vision=7,
         citizen_density=0.7,
-        security_density=0.04,
+        security_density=0.00,
         security_vision=7,
         max_jail_term=30,
         movement=True,
