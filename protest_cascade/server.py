@@ -6,7 +6,7 @@ from mesa.visualization.UserParam import Slider, NumberInput, Checkbox
 from mesa.visualization.modules import ChartModule, TextElement
 
 
-AGENT_SUPPORT_COLOR = "#000000"
+AGENT_SUPPORT_COLOR = "#648FFF"
 AGENT_OPPOSE_COLOR = "#FE6100"
 
 
@@ -75,7 +75,7 @@ def portrayal(agent):
         color = (
             AGENT_SUPPORT_COLOR if agent.condition == "Support" else AGENT_OPPOSE_COLOR
         )
-        radius = 0.5 if agent.condition == "Support" else 0.9
+        radius = 0.5 if agent.condition == "Support" else 0.7
         portrayal["Color"] = color
         portrayal["r"] = radius
         portrayal["Filled"] = "false"
@@ -83,9 +83,9 @@ def portrayal(agent):
 
     if type(agent) is Security:
         portrayal["Shape"] = "rect"
-        portrayal["w"] = 0.9
-        portrayal["h"] = 0.9
-        portrayal["Color"] = "#0000FF"
+        portrayal["w"] = 0.8
+        portrayal["h"] = 0.8
+        portrayal["Color"] = "#000000"
         portrayal["Layer"] = 1
     return portrayal
 
@@ -96,7 +96,7 @@ model_params = dict(
     citizen_density=Slider("Initial Agent Density", 0.7, 0.0, 0.9, 0.1),
     citizen_vision=Slider("Citizen Vision", 7, 1, 10, 1),
     security_vision=Slider("Security Vision", 7, 1, 10, 1),
-    security_density=Slider("Security Density", 0.04, 0.0, 0.09, 0.01),
+    security_density=Slider("Security Density", 0.00, 0.0, 0.09, 0.01),
     max_jail_term=Slider("Maximum Jail Term", 30, 1, 50, 5),
     private_preference_distribution_mean=Slider(
         "Center of Normal Distribution of Regime Preference", 0, -1, 1, 0.1
