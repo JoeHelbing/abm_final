@@ -20,7 +20,6 @@ fixed_parameters = {
     "citizen_density": 0.7,
     "citizen_vision": 7,
     "movement": True,
-    "max_iters": 5,
     "multiple_agents_per_cell": False,
 }
 
@@ -29,28 +28,12 @@ params = {
     "seed": [*range(0, 9, 1)],
     "private_preference_distribution_mean": [
         -1,
-        -0.9,
-        -0.8,
-        -0.7,
-        -0.6,
         -0.5,
-        -0.4,
-        -0.3,
-        -0.2,
-        -0.1,
         0,
-        0.1,
-        0.2,
-        0.3,
-        0.4,
         0.5,
-        0.6,
-        0.7,
-        0.8,
-        0.9,
         1,
     ],
-    "epsilon": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+    "epsilon": [0, 0.2, 0.4, 0.6, 0.8, 1],
 }
 
 
@@ -73,7 +56,7 @@ log.debug(parameters_list)
 # what to run and what to collect
 # iterations is how many runs per parameter value
 # max_steps is how long to run the model
-max_steps = 10
+max_steps = 100
 batch_run = FixedBatchRunner(
     ProtestCascade,
     parameters_list,
