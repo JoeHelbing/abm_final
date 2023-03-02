@@ -20,13 +20,21 @@ fixed_parameters = {
     "citizen_density": 0.7,
     "citizen_vision": 7,
     "movement": True,
-    "max_iters": 5,
     "multiple_agents_per_cell": False,
 }
 
-# parameters you want to vary
-# can also include combinations here
-params = {"seed": [*range(0, 9, 1)]}
+# parameter sweep
+params = {
+    "seed": [*range(0, 9, 1)],
+    "private_preference_distribution_mean": [
+        -1,
+        -0.5,
+        0,
+        0.5,
+        1,
+    ],
+    "epsilon": [0, 0.2, 0.4, 0.6, 0.8, 1],
+}
 
 
 def dict_product(dicts):  # could just use the below but it's cleaner this way
@@ -55,11 +63,18 @@ batch_run = FixedBatchRunner(
     fixed_parameters,
     model_reporters={
         "Seed": lambda m: m.report_seed(m),
+        "Citizen Count": lambda m: m.count_citizen(m),
+        "Protest Count": lambda m: m.count_protest(m),
+        "Support Count": lambda m: m.count_support(m),
+        "Speed of Spread": lambda m: m.speed_of_spread(m),
     },
     agent_reporters={
         "pos": "pos",
         "condition": "condition",
         "opinion": "opinion",
+        "activation": "activation",
+        "private_preference": "private_preference",
+        "epsilon": "epsilon",
     },
     max_steps=max_steps,
 )
@@ -79,12 +94,14 @@ batch_step_agent_raw = batch_run.get_collector_agents()
 # export the data to a csv file for graphing/analysis
 cwd = os.getcwd()
 path = os.path.join(cwd, "data/")
-batch_end_model.to_csv(f"{path}\model_batch.csv")
+batch_end_model.to_csv(f"{path}/model_batch.csv")
 
-print(batch_step_model_raw.keys())
-
+if not os.path.exists(f"{path}/model"):
+    os.makedirs(f"{path}/model")
 for key, df in batch_step_model_raw.items():
-    df.to_csv(f"{path}/model/model_seed_{key[0]}.csv")
+    df.to_csv(f"{path}/model/model_seed_{key[0]}_pp_{key[1]}_ep_{key[2]}.csv")
 
+if not os.path.exists(f"{path}/agent"):
+    os.makedirs(f"{path}/agent")
 for key, df in batch_step_agent_raw.items():
-    df.to_csv(f"{path}/agent/agent_seed_{key[0]}.csv")
+    df.to_csv(f"{path}/agent/agent_seed_{key[0]}_pp_{key[1]}_ep_{key[2]}.csv")

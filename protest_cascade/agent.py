@@ -38,7 +38,7 @@ class RandomWalker(mesa.Agent):
 
     def update_neighbors(self):
         """
-        Placeholder
+        Update the list of neighbors.
         """
         self.neighborhood = self.model.grid.get_neighborhood(
             self.pos, moore=True, radius=self.vision
@@ -138,7 +138,9 @@ class RandomWalker(mesa.Agent):
 
 class Citizen(RandomWalker):
     """
-    Placeholder
+    Citizen agent class that inherits from RandomWalker class. This class
+    looks at it's neighbors and decides whether to activate or not based on
+    number of active neighbors and it's own activation level.
     """
 
     def __init__(
@@ -152,21 +154,31 @@ class Citizen(RandomWalker):
         threshold,
     ):
         """
-        Placeholder
+        Attributes and methods inherited from RandomWalker class:
+        grid, x, y, moore, update_neighbors, random_move, determine_avg_loc,
+        move_towards, sigmoid, logit, distance
         """
         super().__init__(unique_id, model, pos)
-        self.pos = pos
+        # core agent attributes
+        # self.pos = pos
         self.vision = vision
-        self.network = None
-        self.condition = "Support"
+
+        # agent personality attributes
         self.private_preference = private_preference
         self.epsilon = epsilon
         self.threshold = threshold
         self.opinion = None
         self.activation = None
+        self.risk_aversion = None
+
+        # agent memory attributes
+        self.network = None
         self.flip = None
         self.ever_flipped = False
         self.memory = None
+        self.condition = "Support"
+
+        # agent jail attributes
         self.jail_sentence = 0
 
     def step(self):
@@ -208,7 +220,8 @@ class Citizen(RandomWalker):
 
     def determine_condidion(self):
         """
-        Placeholder
+        activation function that determines whether citizen will support
+        or protest.
         """
         # Count total active agents in vision
         actives_in_vision = 1.0  # citizen counts themself
@@ -247,15 +260,18 @@ class Citizen(RandomWalker):
         if prev_condition != self.condition:
             log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
+
 class Security(RandomWalker):
     """
-    Placeholder
+    Security agent class that inherits from RandomWalker class. This class
+    looks at it's neighbors and arrests active neighbor
+
+    Attributes and methods inherited from RandomWalker class:
+    grid, x, y, moore, update_neighbors, random_move, determine_avg_loc,
+    move_towards, sigmoid, logit, distance
     """
 
     def __init__(self, unique_id, model, pos, vision):
-        """
-        Placeholder
-        """
         super().__init__(unique_id, model, pos)
         self.pos = pos
         self.vision = vision
@@ -264,7 +280,7 @@ class Security(RandomWalker):
 
     def step(self):
         """
-        Placeholder
+        Steps for security class to determine behavior
         """
         # random movement
         self.random_move()
@@ -273,7 +289,7 @@ class Security(RandomWalker):
 
     def arrest(self):
         """
-        Placeholder
+        Arrests active neighbor
         """
         neighbor_cells = self.model.grid.get_neighborhood(self.pos, moore=True)
 

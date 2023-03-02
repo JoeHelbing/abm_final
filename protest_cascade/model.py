@@ -5,9 +5,30 @@ import numpy as np
 from protest_cascade.scheduler import RandomActivationByTypeFiltered
 from .agent import Citizen, Security
 
+
 class ProtestCascade(mesa.Model):
     """
-    Placeholder
+    Create ProtestCascade model with the following parameters:
+
+    width: width of the grid
+    height: height of the grid
+    citizen_vision: vision of the citizen agents [some integer]
+    citizen_density: density of the citizen agents [float between 0 and 1]
+    security_density: density of the security agents [float between 0 and 1]
+    security_vision: vision of the security agents [some integer]
+    max_jail_term: maximum jail term for security agents [some integer]
+    movement: whether or not agents can move [boolean]
+    multiple_agents_per_cell: whether or not multiple agents can occupy the same cell [boolean]
+    network: whether or not agents are connected in a network with fixed settings [boolean]
+    network_discount: discount factor for network connections [float between 0 and 1]
+    international_context: unused parameter currently
+    private_preference_distribution_mean: the mean or center point of a normal distribution for private preference
+    standard_deviation: the standard deviation of a normal distribution for private preference
+    epsilon: the operationalization of authoritarianism representing error rate of agent understanding of "red line" and repression consequences
+    threshold: value between 0 and 1 for threshold of (1 - threshold) for agent to protest
+    max_iters: maximum number of iterations to run the model
+    seed: seed for random number generator
+    random_seed: whether or not to use a random seed for the random number generator
     """
 
     def __init__(
@@ -16,7 +37,7 @@ class ProtestCascade(mesa.Model):
         height=40,
         citizen_vision=7,
         citizen_density=0.7,
-        security_density=0.04,
+        security_density=0.00,
         security_vision=7,
         max_jail_term=30,
         movement=True,
@@ -72,6 +93,7 @@ class ProtestCascade(mesa.Model):
         self.protest_count = 0
 
         # Create agents
+        # create Citizens
         for i in range(self.citizen_count):
             pos = None
             if not self.multiple_agents_per_cell and len(self.grid.empties) > 0:
@@ -100,6 +122,7 @@ class ProtestCascade(mesa.Model):
             self.grid.place_agent(citizen, pos)
             self.schedule.add(citizen)
 
+        # create Security
         for i in range(self.security_count):
             pos = None
             if not self.multiple_agents_per_cell and len(self.grid.empties) > 0:
@@ -165,7 +188,9 @@ class ProtestCascade(mesa.Model):
 
     def network_initialization(self):
         """
-        Placeholder
+        Initialize the network of agents for each agent in the model.
+
+        preferences agents that are closer to them and normalizes the distances
         """
         for agent in self.schedule.agents_by_type[Citizen].values():
 
@@ -193,6 +218,8 @@ class ProtestCascade(mesa.Model):
                 k=self.network_size,
             )
 
+    ############################################################################
+    ############################################################################
     """
     Section for model level helper methods used in ititialization and step.
     """
@@ -205,6 +232,8 @@ class ProtestCascade(mesa.Model):
             (agent1.pos[0] - agent2.pos[0]) ** 2 + (agent1.pos[1] - agent2.pos[1]) ** 2
         )
 
+    ############################################################################
+    ############################################################################
     """
     Section for helper methods used in data collection.
     """
