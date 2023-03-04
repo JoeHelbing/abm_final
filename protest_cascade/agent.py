@@ -236,7 +236,7 @@ class Citizen(RandomWalker):
             (actives_in_vision) / security_in_vision
         )
 
-        self.activation = 1 - self.model.sigmoid(self.opinion)
+        self.activation = self.model.sigmoid(self.opinion)
 
         # record previous condition
         prev_condition = self.condition
