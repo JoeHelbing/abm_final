@@ -2,7 +2,7 @@ import mesa
 import math
 import logging as log
 import numpy as np
-from protest_cascade.scheduler import RandomActivationByTypeFiltered
+from protest_cascade.scheduler import SimultaneousActivationByTypeFiltered
 from .agent import Citizen, Security
 
 
@@ -81,7 +81,7 @@ class ProtestCascade(mesa.Model):
         self.threshold = 3.595
         self.iteration = 0
         self.random_seed = random_seed
-        self.schedule = RandomActivationByTypeFiltered(self)
+        self.schedule = SimultaneousActivationByTypeFiltered(self)
         self.grid = mesa.space.MultiGrid(self.width, self.height, torus=True)
 
         # theshold for protest agent level constants

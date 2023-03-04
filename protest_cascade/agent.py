@@ -157,6 +157,9 @@ class Citizen(RandomWalker):
         # self.pos = pos
         self.vision = vision
 
+        # simultaneous activation attributes
+        self._update_condition = None
+
         # agent personality attributes
         self.private_preference = private_preference
         self.epsilon = epsilon
@@ -193,14 +196,26 @@ class Citizen(RandomWalker):
                 f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
             )
 
-        # random movement
-        self.random_move()
         # update neighborhood
         self.neighborhood = self.update_neighbors()
-        # memorize avg location of acitve agents
-        self.memory = self.determine_avg_loc()
         # based on neighborhood determine if support, oppose, or protest
         self.determine_condidion()
+
+    def advance(self):
+        """
+        Advance the citizen to the next step of the model.
+        """
+        if self.jail_sentence > 0 or self.condition == "Jailed":
+            return
+
+        # update condition
+        self.condition = self._update_condition
+
+        # memorize avg location of acitve agents
+        self.memory = self.determine_avg_loc()
+
+        # random movement
+        self.random_move()
 
     def update_neighbors(self):
         """
@@ -218,7 +233,7 @@ class Citizen(RandomWalker):
         or protest.
         """
         # Count total active agents in vision
-        actives_in_vision = 0  
+        actives_in_vision = 0
         actives_in_vision += sum(
             [
                 True
@@ -242,20 +257,22 @@ class Citizen(RandomWalker):
         prev_condition = self.condition
 
         if self.activation > self.threshold:
-            if self.condition != "Protest":
+            if self._update_condition != "Protest":
                 self.flip = True
                 self.ever_flipped = True
-            self.condition = "Protest"
+            self._update_condition = "Protest"
         else:
-            self.condition = "Support"
+            self._update_condition = "Support"
 
         # logging
-        log.debug(f"Agent {self.unique_id}: Private Preference: {self.private_preference}")
-        log.debug(f"Agent {self.unique_id}: Epsilon: {self.epsilon}")
-        log.debug(f"Agent {self.unique_id}: Threshold: {self.threshold}")
-        log.debug(f"Agent {self.unique_id}: Actives in vision: {actives_in_vision} ")
-        log.debug(f"Agent {self.unique_id}: Opinion: {self.opinion}")
-        log.debug(f"Agent {self.unique_id}: Activation: {self.activation}")
+        # log.debug(
+        #     f"Agent {self.unique_id}: Private Preference: {self.private_preference}"
+        # )
+        # log.debug(f"Agent {self.unique_id}: Epsilon: {self.epsilon}")
+        # log.debug(f"Agent {self.unique_id}: Threshold: {self.threshold}")
+        # log.debug(f"Agent {self.unique_id}: Actives in vision: {actives_in_vision} ")
+        # log.debug(f"Agent {self.unique_id}: Opinion: {self.opinion}")
+        # log.debug(f"Agent {self.unique_id}: Activation: {self.activation}")
         if prev_condition != self.condition:
             log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
@@ -282,9 +299,14 @@ class Security(RandomWalker):
         Steps for security class to determine behavior
         """
         # random movement
-        self.random_move()
         self.update_neighbors()
+
+    def advance(self):
+        """
+        Advance for security class to determine behavior
+        """
         self.arrest()
+        self.random_move()
 
     def arrest(self):
         """
