@@ -77,8 +77,8 @@ class ProtestCascade(mesa.Model):
         self.network_size = round(
             (((self.citizen_vision * 2 + 1) ** 2) - 1) * self.citizen_density
         )
-        self.epsilon = (epsilon / 2 * -1, epsilon / 2)
-        self.threshold = 1 - threshold
+        self.epsilon = epsilon
+        self.threshold = 3.595
         self.iteration = 0
         self.random_seed = random_seed
         self.schedule = RandomActivationByTypeFiltered(self)
@@ -107,9 +107,9 @@ class ProtestCascade(mesa.Model):
                 private_preference_distribution_mean, standard_deviation
             )
             # uniform distribution of error term on expectation of repression
-            epsilon = self.random.uniform(self.epsilon[0], self.epsilon[1])
+            epsilon = self.random.gauss(0, self.epsilon)
             # uniform distribution of threshold for protest
-            threshold = self.random.uniform(self.threshold, 1)
+            threshold = self.sigmoid(self.threshold + epsilon)
             citizen = Citizen(
                 self.next_id(),
                 self,
@@ -231,6 +231,12 @@ class ProtestCascade(mesa.Model):
         return math.sqrt(
             (agent1.pos[0] - agent2.pos[0]) ** 2 + (agent1.pos[1] - agent2.pos[1]) ** 2
         )
+
+    def sigmoid(self, x):
+        """
+        Sigmoid function
+        """
+        return 1 / (1 + math.exp(-x))
 
     ############################################################################
     ############################################################################

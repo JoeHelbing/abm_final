@@ -117,12 +117,6 @@ class RandomWalker(mesa.Agent):
         ]
         return closer_moves
 
-    def sigmoid(self, x):
-        """
-        Sigmoid function
-        """
-        return 1 / (1 + math.exp(-x))
-
     def logit(self, x):
         """
         Logit function
@@ -224,7 +218,7 @@ class Citizen(RandomWalker):
         or protest.
         """
         # Count total active agents in vision
-        actives_in_vision = 1.0  # citizen counts themself
+        actives_in_vision = 0  
         actives_in_vision += sum(
             [
                 True
@@ -238,13 +232,11 @@ class Citizen(RandomWalker):
         )
 
         # Calculate opinion and determine condition
-        self.opinion = (
-            self.private_preference
-            + self.epsilon
-            + ((0.1 * actives_in_vision) / security_in_vision)
+        self.opinion = -1 * self.private_preference + (
+            (actives_in_vision) / security_in_vision
         )
 
-        self.activation = self.sigmoid(self.opinion)
+        self.activation = 1 - self.model.sigmoid(self.opinion)
 
         # record previous condition
         prev_condition = self.condition
@@ -257,6 +249,13 @@ class Citizen(RandomWalker):
         else:
             self.condition = "Support"
 
+        # logging
+        log.debug(f"Agent {self.unique_id}: Private Preference: {self.private_preference}")
+        log.debug(f"Agent {self.unique_id}: Epsilon: {self.epsilon}")
+        log.debug(f"Agent {self.unique_id}: Threshold: {self.threshold}")
+        log.debug(f"Agent {self.unique_id}: Actives in vision: {actives_in_vision} ")
+        log.debug(f"Agent {self.unique_id}: Opinion: {self.opinion}")
+        log.debug(f"Agent {self.unique_id}: Activation: {self.activation}")
         if prev_condition != self.condition:
             log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
