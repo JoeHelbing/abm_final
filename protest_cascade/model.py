@@ -48,7 +48,6 @@ class ProtestCascade(mesa.Model):
         private_preference_distribution_mean=0,
         standard_deviation=1,
         epsilon=0.5,
-        threshold=0.1,
         max_iters=1000,
         seed=None,
         random_seed=False,
@@ -62,30 +61,38 @@ class ProtestCascade(mesa.Model):
         log.info(f"Running ProtestCascade with seed {self._seed}")
         self.width = width
         self.height = height
-        self.citizen_density = citizen_density
-        self.citizen_vision = citizen_vision
-        self.security_density = security_density
-        self.security_vision = security_vision
+
+        # model boolean constants
         self.movement = movement
-        self.max_jail_term = max_jail_term
-        self.max_iters = max_iters
         self.multiple_agents_per_cell = multiple_agents_per_cell
         self.network = network
         self.network_discount = network_discount
+
+        # agent level constants
+        self.international_context = international_context
+        self.citizen_density = citizen_density
+        self.citizen_vision = citizen_vision
+        self.private_preference_distribution_mean = private_preference_distribution_mean
+        self.standard_deviation = standard_deviation
+        self.epsilon = epsilon
+        self.threshold = 3.595
+        self.security_density = security_density
+        self.security_vision = security_vision
+
+        # model level constants
+        self.max_jail_term = max_jail_term
         self.citizen_count = round(self.width * self.height * self.citizen_density)
         self.security_count = round(self.width * self.height * self.security_density)
         self.network_size = round(
             (((self.citizen_vision * 2 + 1) ** 2) - 1) * self.citizen_density
         )
-        self.epsilon = epsilon
-        self.threshold = 3.595
+
+        # model setup
+        self.max_iters = max_iters
         self.iteration = 0
         self.random_seed = random_seed
         self.schedule = SimultaneousActivationByTypeFiltered(self)
         self.grid = mesa.space.MultiGrid(self.width, self.height, torus=True)
-
-        # theshold for protest agent level constants
-        self.international_context = international_context
 
         # agent counts
         self.support_count = 0
@@ -104,7 +111,7 @@ class ProtestCascade(mesa.Model):
                 pos = (x, y)
             # normal distribution of private regime preference
             private_preference = self.random.gauss(
-                private_preference_distribution_mean, standard_deviation
+                self.private_preference_distribution_mean, self.standard_deviation
             )
             # uniform distribution of error term on expectation of repression
             epsilon = self.random.gauss(0, self.epsilon)
@@ -131,11 +138,21 @@ class ProtestCascade(mesa.Model):
                 x = self.random.randrange(self.width)
                 y = self.random.randrange(self.height)
                 pos = (x, y)
+
+            # normal distribution of private regime preference
+            private_preference = self.random.gauss(
+                self.private_preference_distribution_mean, self.standard_deviation
+            )
+
             security = Security(
                 self.next_id(),
                 self,
                 pos,
                 self.security_vision,
+                private_preference,
+            )
+            log.debug(
+                f"Security {security.unique_id} created at {security.pos} with private_preference {security.private_preference}"
             )
             self.grid.place_agent(security, pos)
             self.schedule.add(security)
@@ -174,6 +191,12 @@ class ProtestCascade(mesa.Model):
         Advance the model by one step and collect data.
         """
         self.schedule.step()
+
+        # defecting security outside of step function to avoid errors
+        for agent in self.schedule.agents_by_type[Security].values():
+            if agent.condition == "defect":
+                agent.remove_thyself()
+                del agent
 
         # collect data
         self.datacollector.collect(self)

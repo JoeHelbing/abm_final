@@ -64,6 +64,12 @@ def portrayal(agent):
     if agent is None:
         return
 
+    if type(agent) is Security and agent.defected:
+        return
+
+    if type(agent) is Citizen and agent.condition == "Jail":
+        return
+
     portrayal = {
         "Shape": "circle",
         "x": agent.pos[0],

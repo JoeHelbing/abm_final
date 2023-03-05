@@ -184,17 +184,9 @@ class Citizen(RandomWalker):
         """
         # Set flip to False
         self.flip = False
-        # jail sentence
-        if self.jail_sentence > 0:
-            self.jail_sentence -= 1
+
+        if self.jail_sentence > 0 or self.condition == "Jailed":
             return
-        elif self.jail_sentence <= 0 and self.condition == "Jailed":
-            self.pos = self.random.choice(list(self.model.grid.empties))
-            log.debug(f"Citizen {self.unique_id}  was given {self.pos} after jail.")
-            self.model.grid.place_agent(self, self.pos)
-            log.debug(
-                f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
-            )
 
         # update neighborhood
         self.neighborhood = self.update_neighbors()
@@ -205,8 +197,18 @@ class Citizen(RandomWalker):
         """
         Advance the citizen to the next step of the model.
         """
-        if self.jail_sentence > 0 or self.condition == "Jailed":
+        # jail sentence
+        if self.jail_sentence > 0:
+            self.jail_sentence -= 1
             return
+        elif self.jail_sentence <= 0 and self.condition == "Jailed":
+            self.pos = self.random.choice(list(self.model.grid.empties))
+            # log.debug(f"Citizen {self.unique_id}  was given {self.pos} after jail.")
+            self.model.grid.place_agent(self, self.pos)
+            # log.debug(
+            #     f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
+            # )
+            self.condition = "Support"
 
         # update condition
         self.condition = self._update_condition
@@ -287,24 +289,34 @@ class Security(RandomWalker):
     move_towards, sigmoid, logit, distance
     """
 
-    def __init__(self, unique_id, model, pos, vision):
+    def __init__(self, unique_id, model, pos, vision, private_preference):
         super().__init__(unique_id, model, pos)
         self.pos = pos
         self.vision = vision
+        self.private_preference = private_preference
         self.condition = "Support"
         self.memory = None
+        self.defected = False
+        self.new_identity = None
 
     def step(self):
         """
         Steps for security class to determine behavior
         """
+        if self.defected:
+            return
+        
         # random movement
         self.update_neighbors()
+        self.new_identity = self.defect()
 
     def advance(self):
         """
         Advance for security class to determine behavior
         """
+        if self.defected:
+            return
+
         self.arrest()
         self.random_move()
 
@@ -326,6 +338,57 @@ class Security(RandomWalker):
             arrestee.jail_sentence = sentence
             arrestee.condition = "Jailed"
             self.model.grid.remove_agent(arrestee)
-            log.debug(f"====================================================")
-            log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
-            log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
+            # log.debug(f"====================================================")
+            # log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
+            # log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
+
+    def defect(self):
+        """
+        Defects from the from security
+        """
+        if (
+            all(
+                [
+                    agent.condition == "Protest"
+                    for agent in self.neighbors
+                    if isinstance(agent, Citizen)
+                ]
+            )
+            and self.private_preference < 0
+        ):
+            log.debug(f"Agent {self.unique_id} -- Defecting")
+            # normal distribution of private regime preference
+            private_preference = self.model.random.gauss(
+                self.model.private_preference_distribution_mean,
+                self.model.standard_deviation,
+            )
+            # uniform distribution of error term on expectation of repression
+            epsilon = self.random.gauss(0, self.model.epsilon)
+            # uniform distribution of threshold for protest
+            threshold = self.model.sigmoid(self.model.threshold + epsilon)
+
+            citizen = Citizen(
+                self.unique_id,
+                self.model,
+                self.pos,
+                self.model.citizen_vision,
+                private_preference,
+                epsilon,
+                threshold,
+            )
+            citizen.condition = "Protest"
+            self.defected = True
+            return citizen
+
+    def remove_thyself(self):
+        """
+        Removes agent from the grid
+        """
+        self.model.grid.remove_agent(self)
+        self.model.schedule.remove(self)
+
+        self.model.grid.place_agent(self.new_identity, self.new_identity.pos)
+        self.model.schedule.add(self.new_identity)
+        log.debug(
+            f"Agent {self.unique_id} -- Defected to {self.new_identity.unique_id}"
+        )
