@@ -29,7 +29,7 @@ Then open your browser to [http://127.0.0.1:8521/](http://127.0.0.1:8521/) and p
 * ``model.py``: Core model and agent code.
 * ``server.py``: Sets up the interactive visualization.
 * ``agent.py``: Defines the base agent RandomWalker and the inheriting agents Citizen and Security.
-* ``schedule.py``: Defines the base schedule RandomActivationByType and the inheriting schedule with added functions.
+* ``schedule.py``: Defines the base schedule SimultaneousActivationByType and the inheriting schedule with added functions.
 
 ## Further Reading
 
