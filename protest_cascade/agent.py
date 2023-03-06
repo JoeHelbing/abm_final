@@ -117,12 +117,6 @@ class RandomWalker(mesa.Agent):
         ]
         return closer_moves
 
-    def sigmoid(self, x):
-        """
-        Sigmoid function
-        """
-        return 1 / (1 + math.exp(-x))
-
     def logit(self, x):
         """
         Logit function
@@ -163,6 +157,9 @@ class Citizen(RandomWalker):
         # self.pos = pos
         self.vision = vision
 
+        # simultaneous activation attributes
+        self._update_condition = None
+
         # agent personality attributes
         self.private_preference = private_preference
         self.epsilon = epsilon
@@ -187,26 +184,40 @@ class Citizen(RandomWalker):
         """
         # Set flip to False
         self.flip = False
+
+        if self.jail_sentence > 0 or self.condition == "Jailed":
+            return
+
+        # update neighborhood
+        self.neighborhood = self.update_neighbors()
+        # based on neighborhood determine if support, oppose, or protest
+        self.determine_condidion()
+
+    def advance(self):
+        """
+        Advance the citizen to the next step of the model.
+        """
         # jail sentence
         if self.jail_sentence > 0:
             self.jail_sentence -= 1
             return
         elif self.jail_sentence <= 0 and self.condition == "Jailed":
             self.pos = self.random.choice(list(self.model.grid.empties))
-            log.debug(f"Citizen {self.unique_id}  was given {self.pos} after jail.")
+            # log.debug(f"Citizen {self.unique_id}  was given {self.pos} after jail.")
             self.model.grid.place_agent(self, self.pos)
-            log.debug(
-                f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
-            )
+            # log.debug(
+            #     f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
+            # )
+            self.condition = "Support"
+
+        # update condition
+        self.condition = self._update_condition
+
+        # memorize avg location of acitve agents
+        self.memory = self.determine_avg_loc()
 
         # random movement
         self.random_move()
-        # update neighborhood
-        self.neighborhood = self.update_neighbors()
-        # memorize avg location of acitve agents
-        self.memory = self.determine_avg_loc()
-        # based on neighborhood determine if support, oppose, or protest
-        self.determine_condidion()
 
     def update_neighbors(self):
         """
@@ -224,7 +235,7 @@ class Citizen(RandomWalker):
         or protest.
         """
         # Count total active agents in vision
-        actives_in_vision = 1.0  # citizen counts themself
+        actives_in_vision = 0
         actives_in_vision += sum(
             [
                 True
@@ -238,25 +249,32 @@ class Citizen(RandomWalker):
         )
 
         # Calculate opinion and determine condition
-        self.opinion = (
-            self.private_preference
-            + self.epsilon
-            + ((0.1 * actives_in_vision) / security_in_vision)
+        self.opinion = -1 * self.private_preference + (
+            (actives_in_vision) / security_in_vision
         )
 
-        self.activation = self.sigmoid(self.opinion)
+        self.activation = self.model.sigmoid(self.opinion)
 
         # record previous condition
         prev_condition = self.condition
 
         if self.activation > self.threshold:
-            if self.condition != "Protest":
+            if self._update_condition != "Protest":
                 self.flip = True
                 self.ever_flipped = True
-            self.condition = "Protest"
+            self._update_condition = "Protest"
         else:
-            self.condition = "Support"
+            self._update_condition = "Support"
 
+        # logging
+        # log.debug(
+        #     f"Agent {self.unique_id}: Private Preference: {self.private_preference}"
+        # )
+        # log.debug(f"Agent {self.unique_id}: Epsilon: {self.epsilon}")
+        # log.debug(f"Agent {self.unique_id}: Threshold: {self.threshold}")
+        # log.debug(f"Agent {self.unique_id}: Actives in vision: {actives_in_vision} ")
+        # log.debug(f"Agent {self.unique_id}: Opinion: {self.opinion}")
+        # log.debug(f"Agent {self.unique_id}: Activation: {self.activation}")
         if prev_condition != self.condition:
             log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
@@ -271,21 +289,36 @@ class Security(RandomWalker):
     move_towards, sigmoid, logit, distance
     """
 
-    def __init__(self, unique_id, model, pos, vision):
+    def __init__(self, unique_id, model, pos, vision, private_preference):
         super().__init__(unique_id, model, pos)
         self.pos = pos
         self.vision = vision
+        self.private_preference = private_preference
         self.condition = "Support"
         self.memory = None
+        self.defected = False
+        self.new_identity = None
 
     def step(self):
         """
         Steps for security class to determine behavior
         """
+        if self.defected:
+            return
+        
         # random movement
-        self.random_move()
         self.update_neighbors()
+        self.new_identity = self.defect()
+
+    def advance(self):
+        """
+        Advance for security class to determine behavior
+        """
+        if self.defected:
+            return
+
         self.arrest()
+        self.random_move()
 
     def arrest(self):
         """
@@ -305,6 +338,57 @@ class Security(RandomWalker):
             arrestee.jail_sentence = sentence
             arrestee.condition = "Jailed"
             self.model.grid.remove_agent(arrestee)
-            log.debug(f"====================================================")
-            log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
-            log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
+            # log.debug(f"====================================================")
+            # log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
+            # log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
+
+    def defect(self):
+        """
+        Defects from the from security
+        """
+        if (
+            all(
+                [
+                    agent.condition == "Protest"
+                    for agent in self.neighbors
+                    if isinstance(agent, Citizen)
+                ]
+            )
+            and self.private_preference < 0
+        ):
+            log.debug(f"Agent {self.unique_id} -- Defecting")
+            # normal distribution of private regime preference
+            private_preference = self.model.random.gauss(
+                self.model.private_preference_distribution_mean,
+                self.model.standard_deviation,
+            )
+            # uniform distribution of error term on expectation of repression
+            epsilon = self.random.gauss(0, self.model.epsilon)
+            # uniform distribution of threshold for protest
+            threshold = self.model.sigmoid(self.model.threshold + epsilon)
+
+            citizen = Citizen(
+                self.unique_id,
+                self.model,
+                self.pos,
+                self.model.citizen_vision,
+                private_preference,
+                epsilon,
+                threshold,
+            )
+            citizen.condition = "Protest"
+            self.defected = True
+            return citizen
+
+    def remove_thyself(self):
+        """
+        Removes agent from the grid
+        """
+        self.model.grid.remove_agent(self)
+        self.model.schedule.remove(self)
+
+        self.model.grid.place_agent(self.new_identity, self.new_identity.pos)
+        self.model.schedule.add(self.new_identity)
+        log.debug(
+            f"Agent {self.unique_id} -- Defected to {self.new_identity.unique_id}"
+        )
