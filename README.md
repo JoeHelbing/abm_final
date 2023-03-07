@@ -26,7 +26,7 @@ Then open your browser to [http://127.0.0.1:8521/](http://127.0.0.1:8521/) and p
 
 ## Files in protest_cascade/
 
-* ``model.py``: Core model and agent code.
+* ``model.py``: Core model.
 * ``server.py``: Sets up the interactive visualization.
 * ``agent.py``: Defines the base agent RandomWalker and the inheriting agents Citizen and Security.
 * ``schedule.py``: Defines the base schedule SimultaneousActivationByType and the inheriting schedule with added functions.
