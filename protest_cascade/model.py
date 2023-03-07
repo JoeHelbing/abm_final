@@ -84,7 +84,7 @@ class ProtestCascade(mesa.Model):
         self.private_preference_distribution_mean = private_preference_distribution_mean
         self.standard_deviation = standard_deviation
         self.epsilon = epsilon
-        self.threshold = 4.6
+        self.threshold = 3.595
         self.security_density = security_density
         self.security_vision = security_vision
 
@@ -125,7 +125,6 @@ class ProtestCascade(mesa.Model):
             # normal distribution of private regime preference
             private_preference = self.random.gauss(
                 self.private_preference_distribution_mean, self.standard_deviation
-                self.private_preference_distribution_mean, self.standard_deviation
             )
             # uniform distribution of error term on expectation of repression
             epsilon = self.random.gauss(0, self.epsilon)
@@ -158,12 +157,6 @@ class ProtestCascade(mesa.Model):
                 self.private_preference_distribution_mean, self.standard_deviation
             )
 
-
-            # normal distribution of private regime preference
-            private_preference = self.random.gauss(
-                self.private_preference_distribution_mean, self.standard_deviation
-            )
-
             security = Security(
                 self.next_id(),
                 self,
@@ -171,9 +164,6 @@ class ProtestCascade(mesa.Model):
                 self.security_vision,
                 private_preference,
             )
-            # log.debug(
-            #     f"Security {security.unique_id} created at {security.pos} with private_preference {security.private_preference}"
-            # )
             self.grid.place_agent(security, pos)
             self.schedule.add(security)
 
@@ -229,12 +219,6 @@ class ProtestCascade(mesa.Model):
         Advance the model by one step and collect data.
         """
         self.schedule.step()
-
-        # defecting security outside of step function to avoid errors
-        for agent in self.schedule.agents_by_type[Security].values():
-            if agent.condition == "defect":
-                agent.remove_thyself()
-                del agent
 
         # defecting security outside of step function to avoid errors
         for agent in self.schedule.agents_by_type[Security].values():

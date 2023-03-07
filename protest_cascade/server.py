@@ -108,8 +108,7 @@ model_params = dict(
         "Mean of Regime Preference", 0, -1, 1, 0.1
     ),
     # standard_deviation=Slider("Standard Deviation of Regime Preference", 1, 0, 2, 0.1),
-    epsilon=Slider("Epsilon", 1, 0, 4, 0.1),
-    # threshold=Slider("Threshold", 1, 0.0, 5, 1),
+    epsilon=Slider("Epsilon", 1, 0, 1.5, 0.1),
     # network=Checkbox("Network", value=False),
     random_seed=Checkbox("Flip to Using Random Seeds", value=False),
     multiple_agents_per_cell=Checkbox("Multiple Agents Per Cell", value=False),
@@ -129,8 +128,3 @@ server = mesa.visualization.ModularServer(
     "Protest Cascade",
     model_params,
 )
-
-# An operationalization of the nebulous location of "the red line" and
-# potential consequences. The value is the range of the uniform distribution
-# of the error term. For example, a value of 0.5 means that the error term
-# is uniformly distributed between -0.25 and 0.25.

@@ -2,14 +2,6 @@ import mesa
 import math
 import logging as log
 
-# set up logging for the model
-log.basicConfig(
-    filename="./log/protest_cascade.log",
-    filemode="w",
-    format="%(message)s",
-    level=log.DEBUG,
-)
-
 
 class RandomWalker(mesa.Agent):
     """
@@ -160,8 +152,6 @@ class Citizen(RandomWalker):
         move_towards, sigmoid, logit, distance
         """
         super().__init__(unique_id, model, pos)
-        # core agent attributes
-        # self.pos = pos
         self.vision = vision
 
         # simultaneous activation attributes
@@ -208,6 +198,10 @@ class Citizen(RandomWalker):
         if self.jail_sentence > 0:
             self.jail_sentence -= 1
             return
+        elif self.jail_sentence <= 0 and self.condition == "Jailed":
+            self.pos = self.random.choice(list(self.model.grid.empties))
+            self.model.grid.place_agent(self, self.pos)
+            self.condition = "Support"
 
         # update condition
         self.condition = self._update_condition
@@ -254,9 +248,6 @@ class Citizen(RandomWalker):
 
         self.activation = self.model.sigmoid(self.opinion)
 
-        # record previous condition
-        prev_condition = self.condition
-
         if self.activation > self.threshold:
             if self._update_condition != "Protest":
                 self.flip = True
@@ -264,18 +255,6 @@ class Citizen(RandomWalker):
             self._update_condition = "Protest"
         else:
             self._update_condition = "Support"
-
-        # logging
-        # log.debug(
-        #     f"Agent {self.unique_id}: Private Preference: {self.private_preference}"
-        # )
-        # log.debug(f"Agent {self.unique_id}: Epsilon: {self.epsilon}")
-        # log.debug(f"Agent {self.unique_id}: Threshold: {self.threshold}")
-        # log.debug(f"Agent {self.unique_id}: Actives in vision: {actives_in_vision} ")
-        # log.debug(f"Agent {self.unique_id}: Opinion: {self.opinion}")
-        # log.debug(f"Agent {self.unique_id}: Activation: {self.activation}")
-        if prev_condition != self.condition:
-            log.debug(f"Agent {self.unique_id} -- {prev_condition} -> {self.condition}")
 
 
 class Security(RandomWalker):
@@ -294,6 +273,9 @@ class Security(RandomWalker):
         self.vision = vision
         self.condition = "Support"
         self.memory = None
+        self.defected = False
+        self._new_identity = None
+        self.private_preference = private_preference
 
     def step(self):
         """
@@ -301,7 +283,7 @@ class Security(RandomWalker):
         """
         # random movement
         self.update_neighbors()
-        self.new_identity = self.defect()
+        self._new_identity = self.defect()
 
     def advance(self):
         """
@@ -331,6 +313,51 @@ class Security(RandomWalker):
             arrestee.jail_sentence = sentence
             arrestee.condition = "Jailed"
             self.model.grid.remove_agent(arrestee)
-            log.debug(f"====================================================")
-            log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
-            log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
+
+    def defect(self):
+        """
+        Defects from the from security
+        """
+        if (
+            all(
+                [
+                    agent.condition == "Protest"
+                    for agent in self.neighbors
+                    if isinstance(agent, Citizen)
+                ]
+            )
+            and self.private_preference < 0
+        ):
+            
+            # normal distribution of private regime preference
+            private_preference = self.model.random.gauss(
+                self.model.private_preference_distribution_mean,
+                self.model.standard_deviation,
+            )
+            # uniform distribution of error term on expectation of repression
+            epsilon = self.random.gauss(0, self.model.epsilon)
+            # uniform distribution of threshold for protest
+            threshold = self.model.sigmoid(self.model.threshold + epsilon)
+
+            citizen = Citizen(
+                self.unique_id,
+                self.model,
+                self.pos,
+                self.model.citizen_vision,
+                private_preference,
+                epsilon,
+                threshold,
+            )
+            citizen.condition = "Protest"
+            self.defected = True
+            return citizen
+
+    def remove_thyself(self):
+        """
+        Removes agent from the grid
+        """
+        self.model.grid.remove_agent(self)
+        self.model.schedule.remove(self)
+
+        self.model.grid.place_agent(self._new_identity, self._new_identity.pos)
+        self.model.schedule.add(self._new_identity)
