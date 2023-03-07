@@ -70,14 +70,25 @@ class ProtestCascade(mesa.Model):
 
         # agent level constants
         self.international_context = international_context
+
+        # model boolean constants
+        self.movement = movement
+        self.multiple_agents_per_cell = multiple_agents_per_cell
+        self.network = network
+        self.network_discount = network_discount
+
+        # agent level constants
+        self.international_context = international_context
         self.citizen_density = citizen_density
         self.citizen_vision = citizen_vision
         self.private_preference_distribution_mean = private_preference_distribution_mean
         self.standard_deviation = standard_deviation
         self.epsilon = epsilon
-        self.threshold = 3.595
+        self.threshold = 4.6
         self.security_density = security_density
         self.security_vision = security_vision
+
+        # model level constants
 
         # model level constants
         self.max_jail_term = max_jail_term
@@ -89,6 +100,9 @@ class ProtestCascade(mesa.Model):
 
         # model setup
         self.max_iters = max_iters
+
+        # model setup
+        self.max_iters = max_iters
         self.iteration = 0
         self.random_seed = random_seed
         self.schedule = SimultaneousActivationByTypeFiltered(self)
@@ -96,7 +110,6 @@ class ProtestCascade(mesa.Model):
 
         # agent counts
         self.support_count = 0
-        self.oppose_count = 0
         self.protest_count = 0
 
         # Create agents
@@ -111,6 +124,7 @@ class ProtestCascade(mesa.Model):
                 pos = (x, y)
             # normal distribution of private regime preference
             private_preference = self.random.gauss(
+                self.private_preference_distribution_mean, self.standard_deviation
                 self.private_preference_distribution_mean, self.standard_deviation
             )
             # uniform distribution of error term on expectation of repression
@@ -144,6 +158,12 @@ class ProtestCascade(mesa.Model):
                 self.private_preference_distribution_mean, self.standard_deviation
             )
 
+
+            # normal distribution of private regime preference
+            private_preference = self.random.gauss(
+                self.private_preference_distribution_mean, self.standard_deviation
+            )
+
             security = Security(
                 self.next_id(),
                 self,
@@ -151,9 +171,9 @@ class ProtestCascade(mesa.Model):
                 self.security_vision,
                 private_preference,
             )
-            log.debug(
-                f"Security {security.unique_id} created at {security.pos} with private_preference {security.private_preference}"
-            )
+            # log.debug(
+            #     f"Security {security.unique_id} created at {security.pos} with private_preference {security.private_preference}"
+            # )
             self.grid.place_agent(security, pos)
             self.schedule.add(security)
 
@@ -165,6 +185,10 @@ class ProtestCascade(mesa.Model):
             "Support Count": self.count_support,
             "Jail Count": self.count_jail,
             "Speed of Spread": self.speed_of_spread,
+            "Security Density": self.report_security_density,
+            "Private Preference": self.report_private_preference,
+            "Episilon": self.report_epsilon,
+            "Threshold": self.report_threshold,
         }
         agent_reporters = {
             "pos": lambda a: getattr(a, "pos", None),
@@ -173,7 +197,16 @@ class ProtestCascade(mesa.Model):
             "activation": lambda a: getattr(a, "activation", None),
             "private_preference": lambda a: getattr(a, "private_preference", None),
             "epsilon": lambda a: getattr(a, "epsilon", None),
-        }
+            "threshold": lambda a: getattr(a, "threshold", None),
+            "jail_sentence": lambda a: getattr(a, "jail_sentence", None),
+            "flip": lambda a: getattr(a, "flip", None),
+            "ever_flipped": lambda a: getattr(a, "ever_flipped", None),
+            "model_seed": lambda a: getattr(a, "dc_seed", None),
+            "model_security_density": lambda a: getattr(a, "dc_security_density", None),
+            "model_private_preference": lambda a: getattr(a, "dc_private_preference", None),
+            "model_epsilon": lambda a: getattr(a, "dc_epsilon", None),
+            "model_threshold": lambda a: getattr(a, "dc_threshold", None),
+            }
         self.datacollector = mesa.DataCollector(
             model_reporters=model_reporters, agent_reporters=agent_reporters
         )
@@ -181,6 +214,11 @@ class ProtestCascade(mesa.Model):
         # intializing the agent network
         if self.network:
             self.network_initialization()
+
+        # set citizen states prior to first step
+        for agent in self.schedule.agents_by_type[Citizen].values():
+            agent.neighborhood = agent.update_neighbors()
+            agent.determine_condition()
 
         # The final step is to set the model running
         self.running = True
@@ -198,11 +236,18 @@ class ProtestCascade(mesa.Model):
                 agent.remove_thyself()
                 del agent
 
+        # defecting security outside of step function to avoid errors
+        for agent in self.schedule.agents_by_type[Security].values():
+            if agent.condition == "defect":
+                agent.remove_thyself()
+                del agent
+
         # collect data
         self.datacollector.collect(self)
 
         # update agent counts
         self.protest_count = self.count_protest(self)
+        self.support_count = self.count_support(self)
 
         # update iteration
         self.iteration += 1
@@ -335,3 +380,32 @@ class ProtestCascade(mesa.Model):
                 if agent.condition == "Jailed"
             ]
         )
+    
+    @staticmethod
+    def report_security_density(model):
+        """
+        Helper method to count security density.
+        """
+        return model.security_density
+    
+    @staticmethod
+    def report_private_preference(model):
+        """
+        Helper method to count private preference distribution mean.
+        """
+        return model.private_preference_distribution_mean
+    
+    @staticmethod
+    def report_epsilon(model):
+        """
+        Helper method to count epsilon.
+        """
+        return model.epsilon
+    
+    @staticmethod
+    def report_threshold(model):
+        """
+        Helper method to count threshold.
+        """
+        return model.threshold
+    
