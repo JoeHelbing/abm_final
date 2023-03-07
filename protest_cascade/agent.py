@@ -36,6 +36,13 @@ class RandomWalker(mesa.Agent):
         self.pos = pos
         self.moore = moore
 
+        # model parameters because datacollector needs agent level access
+        self.dc_private_preference = self.model.private_preference_distribution_mean
+        self.dc_security_density = self.model.security_density
+        self.dc_epsilon = self.model.epsilon
+        self.dc_seed = self.model._seed
+        self.dc_threshold = self.model.threshold
+
     def update_neighbors(self):
         """
         Update the list of neighbors.
@@ -191,7 +198,7 @@ class Citizen(RandomWalker):
         # update neighborhood
         self.neighborhood = self.update_neighbors()
         # based on neighborhood determine if support, oppose, or protest
-        self.determine_condidion()
+        self.determine_condition()
 
     def advance(self):
         """
@@ -201,14 +208,6 @@ class Citizen(RandomWalker):
         if self.jail_sentence > 0:
             self.jail_sentence -= 1
             return
-        elif self.jail_sentence <= 0 and self.condition == "Jailed":
-            self.pos = self.random.choice(list(self.model.grid.empties))
-            # log.debug(f"Citizen {self.unique_id}  was given {self.pos} after jail.")
-            self.model.grid.place_agent(self, self.pos)
-            # log.debug(
-            #     f"Grid position is confirmed to be {self.model.grid.get_cell_list_contents(self.pos)}"
-            # )
-            self.condition = "Support"
 
         # update condition
         self.condition = self._update_condition
@@ -229,7 +228,7 @@ class Citizen(RandomWalker):
 
         self.neighbors = self.model.grid.get_cell_list_contents(self.neighborhood)
 
-    def determine_condidion(self):
+    def determine_condition(self):
         """
         activation function that determines whether citizen will support
         or protest.
@@ -293,19 +292,13 @@ class Security(RandomWalker):
         super().__init__(unique_id, model, pos)
         self.pos = pos
         self.vision = vision
-        self.private_preference = private_preference
         self.condition = "Support"
         self.memory = None
-        self.defected = False
-        self.new_identity = None
 
     def step(self):
         """
         Steps for security class to determine behavior
         """
-        if self.defected:
-            return
-        
         # random movement
         self.update_neighbors()
         self.new_identity = self.defect()
@@ -338,57 +331,6 @@ class Security(RandomWalker):
             arrestee.jail_sentence = sentence
             arrestee.condition = "Jailed"
             self.model.grid.remove_agent(arrestee)
-            # log.debug(f"====================================================")
-            # log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
-            # log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")
-
-    def defect(self):
-        """
-        Defects from the from security
-        """
-        if (
-            all(
-                [
-                    agent.condition == "Protest"
-                    for agent in self.neighbors
-                    if isinstance(agent, Citizen)
-                ]
-            )
-            and self.private_preference < 0
-        ):
-            log.debug(f"Agent {self.unique_id} -- Defecting")
-            # normal distribution of private regime preference
-            private_preference = self.model.random.gauss(
-                self.model.private_preference_distribution_mean,
-                self.model.standard_deviation,
-            )
-            # uniform distribution of error term on expectation of repression
-            epsilon = self.random.gauss(0, self.model.epsilon)
-            # uniform distribution of threshold for protest
-            threshold = self.model.sigmoid(self.model.threshold + epsilon)
-
-            citizen = Citizen(
-                self.unique_id,
-                self.model,
-                self.pos,
-                self.model.citizen_vision,
-                private_preference,
-                epsilon,
-                threshold,
-            )
-            citizen.condition = "Protest"
-            self.defected = True
-            return citizen
-
-    def remove_thyself(self):
-        """
-        Removes agent from the grid
-        """
-        self.model.grid.remove_agent(self)
-        self.model.schedule.remove(self)
-
-        self.model.grid.place_agent(self.new_identity, self.new_identity.pos)
-        self.model.schedule.add(self.new_identity)
-        log.debug(
-            f"Agent {self.unique_id} -- Defected to {self.new_identity.unique_id}"
-        )
+            log.debug(f"====================================================")
+            log.debug(f"Agent {arrestee.unique_id} -- ARRESTED")
+            log.debug(f"Agent {arrestee.unique_id} -- SENTENCED TO {sentence} TURNS")

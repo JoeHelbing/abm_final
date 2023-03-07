@@ -131,3 +131,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# individual data files
+data_100_step.zip
+data_old.zip
+data.7z
+data.zip

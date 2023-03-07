@@ -108,7 +108,7 @@ model_params = dict(
         "Mean of Regime Preference", 0, -1, 1, 0.1
     ),
     # standard_deviation=Slider("Standard Deviation of Regime Preference", 1, 0, 2, 0.1),
-    epsilon=Slider("Epsilon", 1, 0, 5, 1),
+    epsilon=Slider("Epsilon", 1, 0, 4, 0.1),
     # threshold=Slider("Threshold", 1, 0.0, 5, 1),
     # network=Checkbox("Network", value=False),
     random_seed=Checkbox("Flip to Using Random Seeds", value=False),
